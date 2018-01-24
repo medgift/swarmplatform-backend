@@ -4,9 +4,12 @@ import ch.hevs.medgift.swarmplatform.swarmbackend.services.DockerService;
 import ch.hevs.medgift.swarmplatform.swarmbackend.utils.Defaults;
 import com.spotify.docker.client.DockerClient;
 import com.spotify.docker.client.exceptions.DockerException;
+import com.spotify.docker.client.exceptions.DockerRequestException;
 import com.spotify.docker.client.exceptions.ServiceNotFoundException;
 import com.spotify.docker.client.messages.mount.Mount;
 import com.spotify.docker.client.messages.swarm.*;
+import com.spotify.docker.client.messages.swarm.Config.Criteria;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.*;
+
+import javax.ws.rs.NotFoundException;
 
 import static ch.hevs.medgift.swarmplatform.swarmbackend.utils.Utils.translateLabelToKeyValue;
 
@@ -46,8 +51,7 @@ public class JobController {
 
         // Get Docker client
         DockerClient docker = dockerService.getDocker();
-        
-
+     
         // Print cluster info
         System.out.println(docker.info().toString());
 
@@ -113,87 +117,63 @@ public class JobController {
 
         // Create service
         docker.createService(serviceSpec);
+        
+        StringBuilder jsonResponse = new StringBuilder("{\"serviceName\":");
+        jsonResponse.append("\"");
+        jsonResponse.append(serviceName);
+        jsonResponse.append("\"}");
 
-        return ResponseEntity.ok("Service " + serviceName + " started!");
+        return ResponseEntity.ok(jsonResponse.toString());
     }
+    
+    
+    @RequestMapping("/service-state/{serviceName}")
+    public ResponseEntity<String> getServiceState(@PathVariable String serviceName) throws DockerException, InterruptedException{
+    	
+    	// Get Docker client
+        DockerClient docker = dockerService.getDocker();
+
+        //Create criteria object for finding service
+    	Task.Criteria criteria = Task.Criteria.builder().serviceName(serviceName).build();
+    	
+    	//Get service tasks
+    	List<Task> taskList = null;
+    	try{
+    		taskList = docker.listTasks(criteria);
+    		
+    	}
+    	catch(DockerRequestException e){
+    		//Throw 404 if service not found
+    		if(e.status() == 404)
+    			return ResponseEntity.notFound().build();
+    		    			
+    		throw e;
+    	}
+  	
+    	//If there are no tasks for this service, throw 404
+    	//(Not sure if that can actually happen)
+    	if(taskList.size() < 1)
+    		return ResponseEntity.notFound().build();
+    	
+    	//We always assume that there is only 1 task per service
+    	//Get the current state of the task
+    	String state = taskList.get(0).status().state();
+
+   
+    	//Json response
+    	StringBuilder jsonResponse = new StringBuilder("{\"state\":");
+        jsonResponse.append("\"");
+        jsonResponse.append(state);
+        jsonResponse.append("\"}");
+    	
+    	return ResponseEntity.ok(jsonResponse.toString());
+
+    }
+    
+    
+    
 
 
-//    @RequestMapping("/create-job/{image-name}")
-//    public ResponseEntity createJob(@PathVariable("image-name") String imageName,
-//                            @RequestParam("labels") Optional<String[]> labels,
-//                            @RequestParam("dataset-mount") Optional<String> datasetMount) throws DockerException, InterruptedException {
-//
-//        // Get Docker client
-//        DockerClient docker = dockerService.getDocker();
-//        
-//
-//        // Print cluster info
-//        System.out.println(docker.info().toString());
-//
-//        // Restart Policy
-//        RestartPolicy restartPolicy = RestartPolicy.builder()
-//                .condition(RestartPolicy.RESTART_POLICY_NONE)
-//                .build();
-//
-//        // Mounts
-//        List<Mount> mountList = new ArrayList<>();
-//        if(datasetMount.isPresent()){
-//            String mountPoint = datasetMount.get();
-//
-//            Mount mount = Mount.builder()
-//                    .readOnly(true)
-//                    .source(mountPoint)
-//                    .target(Defaults.DATASET_MOUNT_TARGET)
-//                    .build();
-//
-//            mountList.add(mount);
-//        }
-//
-//
-//        // Container spec
-//        ContainerSpec containerSpec = ContainerSpec.builder()
-//                .image(imageName)
-//                .mounts(mountList)
-//                .build();
-//
-//        // Service properties
-//        ServiceMode serviceMode = ServiceMode.withReplicas(Defaults.NB_REPLICAS);
-//
-//        // Placement (conditions)
-//        List<String> placementConstraints = new ArrayList<>(labels.get().length);
-//
-//        // Add label constraints (if present)
-//        if (labels.isPresent() && labels.get().length > 0) {
-//
-//            // Translate "highcpu" to "cpu=high", etc.
-//            for (String label : labels.get()) {
-//                placementConstraints.add(translateLabelToKeyValue(label));
-//            }
-//        }
-//        Placement placement = Placement.create(placementConstraints);
-//
-//        // Task spec
-//        TaskSpec taskSpecification = TaskSpec.builder()
-//                .restartPolicy(restartPolicy)
-//                .containerSpec(containerSpec)
-//                .placement(placement)
-//                .build();
-//
-//        // Service name - currently the name of the image and the current time
-//        String serviceName = imageName + System.currentTimeMillis();
-//
-//        // Define service
-//        ServiceSpec serviceSpec = ServiceSpec.builder()
-//                .mode(serviceMode)
-//                .name(serviceName)
-//                .taskTemplate(taskSpecification)
-//                .build();
-//
-//        // Create service
-//        docker.createService(serviceSpec);
-//
-//        return ResponseEntity.ok("Service " + serviceName + " started!");
-//    }
 
     @RequestMapping("/delete-job/{service-name}")
     public ResponseEntity createJob(@PathVariable("service-name") String serviceName) throws DockerException, InterruptedException {
