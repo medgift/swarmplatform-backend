@@ -16,7 +16,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.*;
@@ -44,7 +46,7 @@ public class JobController {
 //    }
     
     
-    @RequestMapping("/create-job")
+    @RequestMapping(value="/jobs" ,method = RequestMethod.POST)
     public ResponseEntity<String> createJob(@RequestParam("imageName") String imageName,
                             @RequestParam("labels") Optional<Integer[]> labels,
                             @RequestParam("datasetMount") Optional<String> datasetMount) throws DockerException, InterruptedException {
@@ -127,7 +129,7 @@ public class JobController {
     }
     
     
-    @RequestMapping("/service-state/{serviceName}")
+    @RequestMapping(value="/jobs/{serviceName}" ,method = RequestMethod.GET)
     public ResponseEntity<String> getServiceState(@PathVariable String serviceName) throws DockerException, InterruptedException{
     	
     	// Get Docker client
@@ -175,18 +177,20 @@ public class JobController {
 
 
 
-    @RequestMapping("/delete-job/{service-name}")
-    public ResponseEntity createJob(@PathVariable("service-name") String serviceName) throws DockerException, InterruptedException {
+    @RequestMapping(value="/jobs/{service-name}",method = RequestMethod.DELETE)
+    //@ResponseBody
+    public ResponseEntity<String> deleteJob(@PathVariable("service-name") String serviceName) throws DockerException, InterruptedException {
 
         DockerClient docker = dockerService.getDocker();
 
         try {
             docker.removeService(serviceName);
         } catch (ServiceNotFoundException e){
-            return ResponseEntity.badRequest().body("Service " + serviceName + " not found!");
+            return ResponseEntity.notFound().build();
         }
 
-        return ResponseEntity.ok("Service " + serviceName + " was deleted!");
+        //204 No content on success
+        return ResponseEntity.noContent().build();
     }
 
 }
