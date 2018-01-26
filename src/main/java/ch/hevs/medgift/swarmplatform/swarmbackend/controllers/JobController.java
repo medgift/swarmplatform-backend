@@ -160,6 +160,7 @@ public class JobController {
     	//We always assume that there is only 1 task per service
     	//Get the current state of the task
     	String state = taskList.get(0).status().state();
+    	
 
    
     	//Json response
