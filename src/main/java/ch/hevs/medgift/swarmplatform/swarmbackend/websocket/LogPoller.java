@@ -2,7 +2,6 @@ package ch.hevs.medgift.swarmplatform.swarmbackend.websocket;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.spotify.docker.client.DockerClient.LogsParam;
@@ -24,19 +23,21 @@ public class LogPoller {
 	private SimpMessagingTemplate template;
 	
 	private String serviceName;
-	
+	private String clientId;
 
 	
 	private boolean doPolling = false;
 	
 	private String serviceId;
 	
-	private int lastPoll;
+	private long lastPoll;
 
 	
 	
-	public LogPoller(String serviceName, DockerService dockerService, SimpMessagingTemplate template ) throws DockerException, InterruptedException {
+	public LogPoller(String serviceName, String clientId, 
+			DockerService dockerService, SimpMessagingTemplate template ) throws DockerException, InterruptedException {
 		this.serviceName = serviceName;
+		this.clientId = clientId;
 		this.dockerService = dockerService;
 		this.template = template;
 		this.initService();
@@ -44,28 +45,32 @@ public class LogPoller {
 	}
 	
 	
-	
-	
 	public void start() throws InterruptedException, DockerException{
 		
-		System.out.println("start polling");
 		
 		this.doPolling = true;
-		this.lastPoll = (int)(System.currentTimeMillis()/1000);
+		this.lastPoll = (System.currentTimeMillis());
 		
+		//get initial log messages
+		String log = this.poll(0);
+		this.sendToQueue(log);
+		
+		//Then do polling
 		while(doPolling){
-			if (Thread.interrupted()) { //cancel if thread interrupted
+			if (Thread.interrupted()) { //cancel if thread interrupted from outside
                 
                 break;
             }
-			String log = this.poll(this.lastPoll + 1);
-			System.out.println("log: "+log);
+			
+			long currentPoll = (System.currentTimeMillis());
+			log = this.poll((int)(this.lastPoll/1000));
+			this.lastPoll = currentPoll;
 			this.sendToQueue(log);
+			
+				
 			Thread.sleep(2000);
-			
-			
-		}
-		
+
+		}	
 	}
 	
 	
@@ -80,8 +85,13 @@ public class LogPoller {
 	/*
 	 * Send message to queue
 	 */
-	private void sendToQueue(String msg){
-		this.template.convertAndSend(Defaults.LOGS_BROKER+"/"+this.serviceName,msg);
+	private void sendToQueue(String log){
+		
+		if(log == null || log.trim().equals(""))
+			return;
+		
+		System.out.format("LOG for serviceName/clientId: %s/%s \n%s",serviceName,clientId,log);
+		this.template.convertAndSend(Defaults.LOGS_BROKER+"/"+this.serviceName+"/"+this.clientId,log);
 	}
 	
 	
@@ -106,7 +116,7 @@ public class LogPoller {
 				
 		return  this.dockerService.getDocker()
 				.serviceLogs(this.serviceId, LogsParam.stdout(),LogsParam.stderr()
-				, LogsParam.since(0));
+				, LogsParam.since(since),LogsParam.timestamps(true));
 	}
 	
 	

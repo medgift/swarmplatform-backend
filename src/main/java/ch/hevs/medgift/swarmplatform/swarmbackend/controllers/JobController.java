@@ -75,6 +75,7 @@ public class JobController {
 
             mountList.add(mount);
         }
+        //TODO: If not present? what to do?...return error code
 
 
         // Container spec
@@ -129,6 +130,8 @@ public class JobController {
     }
     
     
+    //TODO also return container ID of service
+    //   taskList.get(0).status().containerStatus().containerId()
     @RequestMapping(value="/jobs/{serviceName}" ,method = RequestMethod.GET)
     public ResponseEntity<String> getServiceState(@PathVariable String serviceName) throws DockerException, InterruptedException{
     	
@@ -142,7 +145,7 @@ public class JobController {
     	List<Task> taskList = null;
     	try{
     		taskList = docker.listTasks(criteria);
-    		
+		
     	}
     	catch(DockerRequestException e){
     		//Throw 404 if service not found
@@ -160,7 +163,7 @@ public class JobController {
     	//We always assume that there is only 1 task per service
     	//Get the current state of the task
     	String state = taskList.get(0).status().state();
-    	
+
 
    
     	//Json response
@@ -193,5 +196,14 @@ public class JobController {
         //204 No content on success
         return ResponseEntity.noContent().build();
     }
+    
+    //TODO implement copy of result file to NAS or to other container
+    public void copy(String containerFrom, String containerTo){
+    	
+    }
+    
+    
+    
+    
 
 }

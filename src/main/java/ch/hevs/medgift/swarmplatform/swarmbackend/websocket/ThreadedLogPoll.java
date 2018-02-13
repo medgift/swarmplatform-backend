@@ -15,11 +15,11 @@ import ch.hevs.medgift.swarmplatform.swarmbackend.services.DockerService;
 public class ThreadedLogPoll {
 
     @Async
-    Future<LogPoller> run(String serviceName, DockerService dockerService, SimpMessagingTemplate template) 
+    Future<LogPoller> run(String serviceName, String clientId, 
+    		DockerService dockerService, SimpMessagingTemplate template) 
     		throws DockerException, InterruptedException {
-    	
-    	System.out.println("run "+serviceName);
-    	LogPoller p = new LogPoller(serviceName, dockerService, template);
+
+    	LogPoller p = new LogPoller(serviceName, clientId, dockerService, template);
     	
     	p.start();
 
