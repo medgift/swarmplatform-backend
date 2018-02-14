@@ -39,12 +39,6 @@ public class JobController {
         return "Welcome to the Docker Swarm Backend!";
     }
 
-//    @RequestMapping("/create-job")
-//    public ResponseEntity createJob() {
-//        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-//                .body("Please specify the image name in the path: /create-job/NAME_OF_THE_IMAGE");
-//    }
-    
     
     @RequestMapping(value="/jobs" ,method = RequestMethod.POST)
     public ResponseEntity<String> createJob(@RequestParam("imageName") String imageName,
@@ -109,7 +103,7 @@ public class JobController {
                 .build();
 
         // Service name - currently the name of the image and the current time
-        String serviceName = imageName.replace("/", "_")+ System.currentTimeMillis();
+        String serviceName = imageName.replace("/", "_").replace(":", "")+ System.currentTimeMillis();
 
         // Define service
         ServiceSpec serviceSpec = ServiceSpec.builder()
